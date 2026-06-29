@@ -1,5 +1,8 @@
-agent/*
-day3/*
-day4/*
+agent/__pycache__/*
+day1/__pycache__/*
+day2/__pycache__/*
+day3/__pycache__/*
+day4/__pycache__/*
+shared/__pycache__/*
 .env
 .venv
