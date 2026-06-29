@@ -25,7 +25,7 @@ except ImportError:
 BACKEND = os.getenv("LLM_BACKEND", "huggingface").lower()
 
 
-# ─── Hugging Face Inference API ───────────────────────────────────────────────
+# --- Hugging Face Inference API
 
 def _hf_chat(messages: list[dict], model: str | None = None, **kwargs) -> str:
     """
@@ -40,8 +40,9 @@ def _hf_chat(messages: list[dict], model: str | None = None, **kwargs) -> str:
     if not token:
         raise EnvironmentError("HF_TOKEN is not set. See .env.example.")
 
-    model = model or os.getenv("HF_MODEL", "Qwen/Qwen2.5-72B-Instruct")
-    client = InferenceClient(token=token)
+    model    = model or os.getenv("HF_MODEL", "Qwen/Qwen2.5-7B-Instruct")
+    provider = os.getenv("HF_PROVIDER") or None   # None -> HF picks automatically
+    client   = InferenceClient(token=token, provider=provider)
 
     response = client.chat.completions.create(
         model=model,
@@ -52,7 +53,7 @@ def _hf_chat(messages: list[dict], model: str | None = None, **kwargs) -> str:
     return response.choices[0].message.content
 
 
-# ─── LiteLLM ─────────────────────────────────────────────────────────────────
+# --- LiteLLM
 
 def _litellm_chat(messages: list[dict], model: str | None = None, **kwargs) -> str:
     """
@@ -60,10 +61,10 @@ def _litellm_chat(messages: list[dict], model: str | None = None, **kwargs) -> s
     Ollama, and 100+ other providers using the same interface.
 
     The model string follows LiteLLM's convention:
-        gpt-4o-mini                      → OpenAI
-        anthropic/claude-haiku-4-5       → Anthropic
-        groq/llama3-8b-8192              → Groq
-        ollama/mistral                   → local Ollama
+        gpt-4o-mini                      -> OpenAI
+        anthropic/claude-haiku-4-5       -> Anthropic
+        groq/llama3-8b-8192              -> Groq
+        ollama/mistral                   -> local Ollama
     """
     import litellm
 
@@ -77,7 +78,7 @@ def _litellm_chat(messages: list[dict], model: str | None = None, **kwargs) -> s
     return response.choices[0].message.content
 
 
-# ─── Public interface ─────────────────────────────────────────────────────────
+# --- Public interface
 
 def chat(messages: list[dict], model: str | None = None, **kwargs) -> str:
     """

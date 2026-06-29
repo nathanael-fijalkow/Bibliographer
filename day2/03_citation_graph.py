@@ -5,7 +5,7 @@ The graph traversal tool. Given a validated paper in the curated library,
 fetch its references (backward) and/or its citing papers (forward), then
 add new candidates to the discovery queue.
 
-This is how the agent autonomously discovers papers it was never told about —
+This is how the agent autonomously discovers papers it was never told about -
 by following the citation network from papers it already trusts.
 
 Key mechanics:
@@ -39,7 +39,7 @@ get_citations = _api.get_citations
 search_papers = _api.search_papers
 
 
-# ─── Deduplication helpers ────────────────────────────────────────────────────
+# --- Deduplication helpers
 
 def already_seen(paper_id: str, state: dict) -> bool:
     """
@@ -70,7 +70,7 @@ def add_to_queue(papers: list[dict], state: dict, source_paper_id: str) -> int:
     return added
 
 
-# ─── Graph traversal tool ─────────────────────────────────────────────────────
+# --- Graph traversal tool
 
 def traverse_citations(
     paper_id: str,
@@ -122,7 +122,7 @@ def traverse_citations(
     }
 
 
-# ─── BFS utility: expand multiple hops ───────────────────────────────────────
+# --- BFS utility: expand multiple hops
 
 def bfs_expand(state: dict, max_depth: int = 2, direction: str = "backward") -> dict:
     """
@@ -160,31 +160,38 @@ def bfs_expand(state: dict, max_depth: int = 2, direction: str = "backward") -> 
     }
 
 
-# ─── Demo ─────────────────────────────────────────────────────────────────────
+# --- Demo
 
 if __name__ == "__main__":
-    # Simulate a state where we already validated one paper
+    # Fetch the seed paper directly by its arXiv ID.
+    # S2 accepts "arXiv:XXXX.XXXXX" as a valid paper identifier - much more
+    # reliable than a text search, which can surface the wrong paper.
+    # "Hypergraph Neural Networks" - Feng et al., AAAI 2019, arXiv:1809.09401
+    ARXIV_ID = "arXiv:1809.09401"
+    print(f"Fetching seed paper: {ARXIV_ID}\n")
+
+    seed_paper = _api.fetch_paper(ARXIV_ID)
+    if not seed_paper or not seed_paper.get("paper_id"):
+        print(f"Could not fetch {ARXIV_ID}. Check your network / SEMANTIC_SCHOLAR_API_KEY.")
+        raise SystemExit(1)
+
+    paper_id = seed_paper["paper_id"]
+    print(f"Found: [{seed_paper['year']}] {seed_paper['title']}")
+    print(f"  S2 ID: {paper_id}\n")
+
+    # Build a minimal state with this paper already validated.
     state = {
         "target_topic": "Contrastive learning over sparse hypergraphs",
         "curated_library": {
-            "205e3973b035f38e5464aa063aa1a9bffea49832": {
-                "paper_id": "205e3973b035f38e5464aa063aa1a9bffea49832",
-                "title": "Hypergraph Neural Networks",
-                "year": 2019,
-                "authors": ["Yifan Feng"],
-                "abstract": "HGNN framework for data representation via hyperedge convolution.",
-                "citation_count": 1200,
-                "relevance_score": 0.88,
-            }
+            paper_id: {**seed_paper, "relevance_score": 0.88},
         },
         "discovery_queue": [],
         "blacklist": [],
     }
 
-    print("Starting backward traversal (references of a known paper)...\n")
-
-    paper_id = "205e3973b035f38e5464aa063aa1a9bffea49832"
-    result = traverse_citations(paper_id, "backward", state, max_results=10)
+    # Backward traversal - what did this paper cite?
+    print("Starting backward traversal (papers this work cites)...\n")
+    result = traverse_citations(paper_id, "backward", state, max_results=20)
 
     print(f"\nTraversal result:")
     print(json.dumps(result, indent=2))

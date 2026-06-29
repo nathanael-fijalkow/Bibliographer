@@ -1,7 +1,7 @@
 [project]
 name = "bibliographer"
 version = "0.1.0"
-description = "Autonomous academic literature review agent — PhD workshop"
+description = "Autonomous academic literature review agent - PhD workshop"
 requires-python = ">=3.11"
 dependencies = [
     "huggingface_hub>=0.24.0",   # HuggingFace Inference API
@@ -12,5 +12,5 @@ dependencies = [
 
 [tool.uv]
 # uv resolves and locks dependencies in uv.lock automatically.
-# Standard library only otherwise — no LangChain, no frameworks.
-# json, os, time, hashlib, unicodedata, re — all built-in.
+# Standard library only otherwise - no LangChain, no frameworks.
+# json, os, time, hashlib, unicodedata, re - all built-in.

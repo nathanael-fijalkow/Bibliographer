@@ -29,7 +29,18 @@ try:
 except ImportError:
     pass
 
-# ─── Token budget constants ───────────────────────────────────────────────────
+_api_key = os.getenv("SEMANTIC_SCHOLAR_API_KEY", "")
+if _api_key:
+    print(f"  [S2] API key loaded ({_api_key[:6]}...)")
+else:
+    print("  [S2] No API key found - using unauthenticated tier (very low rate limit).")
+    print("       Set SEMANTIC_SCHOLAR_API_KEY in .env to increase limits.")
+
+# Minimum seconds between consecutive S2 requests.
+# Unauthenticated: ~1 req/s is safe. With key: up to 10 req/s.
+REQUEST_DELAY = 1.0 if not _api_key else 0.5
+
+# --- Token budget constants
 #
 # These control how much information from each paper enters the context window.
 # Tune them based on your model's context length and your topic granularity.
@@ -44,29 +55,34 @@ ARXIV_BASE = "http://export.arxiv.org/api/query"
 PAPER_FIELDS = "paperId,title,year,authors,abstract,citationCount,externalIds"
 REFERENCE_FIELDS = "paperId,title,year,authors,abstract,citationCount"
 
-# ─── HTTP helpers ─────────────────────────────────────────────────────────────
+# --- HTTP helpers
 
-def _make_request(url: str, retries: int = 3, backoff: float = 2.0) -> dict | list:
+def _make_request(url: str, retries: int = 3, backoff: float = 2.0) -> dict:
     """
     GET a URL and return parsed JSON. Retries on rate-limit (429) and transient
-    errors with exponential backoff.
+    errors with exponential backoff. Always returns a dict (never None).
     """
-    api_key = os.getenv("SEMANTIC_SCHOLAR_API_KEY", "")
     headers = {}
-    if api_key:
-        headers["x-api-key"] = api_key
+    if _api_key:
+        headers["x-api-key"] = _api_key
+
+    time.sleep(REQUEST_DELAY)  # polite inter-request delay
 
     for attempt in range(retries):
         try:
             req = urllib.request.Request(url, headers=headers)
             with urllib.request.urlopen(req, timeout=15) as resp:
-                return json.loads(resp.read().decode())
+                parsed = json.loads(resp.read().decode())
+                # Some S2 responses are legitimately `null` (e.g. on transient
+                # overload even after a 200). Treat that as empty.
+                return parsed if isinstance(parsed, dict) else {}
         except urllib.error.HTTPError as exc:
             if exc.code == 429:
                 wait = backoff ** (attempt + 1)
                 print(f"  [API] Rate limited. Waiting {wait:.0f}s...")
                 time.sleep(wait)
             elif exc.code == 404:
+                print(f"  [API] 404 Not Found: {url}")
                 return {}
             else:
                 raise
@@ -98,7 +114,7 @@ def _truncate_paper(raw: dict) -> dict:
     }
 
 
-# ─── Semantic Scholar tools ───────────────────────────────────────────────────
+# --- Semantic Scholar tools
 
 def search_papers_semantic_scholar(query: str, max_results: int = MAX_RESULTS_PER_SEARCH) -> list[dict]:
     """Search Semantic Scholar by keyword. Returns truncated paper list."""
@@ -111,7 +127,7 @@ def search_papers_semantic_scholar(query: str, max_results: int = MAX_RESULTS_PE
 
     print(f"  [S2] Searching: {query!r}")
     data = _make_request(url)
-    papers = data.get("data", [])
+    papers = data.get("data") or []
     return [_truncate_paper(p) for p in papers]
 
 
@@ -133,7 +149,7 @@ def get_references(paper_id: str, max_refs: int = 20) -> list[dict]:
     url = f"{SEMANTIC_SCHOLAR_BASE}/paper/{paper_id}/references?{params}"
 
     data = _make_request(url)
-    refs = [item.get("citedPaper", {}) for item in data.get("data", [])]
+    refs = [item.get("citedPaper", {}) for item in (data.get("data") or [])]
     refs = [_truncate_paper(r) for r in refs if r.get("paperId")]
     refs.sort(key=lambda p: p["citation_count"], reverse=True)
     return refs[:max_refs]
@@ -148,13 +164,13 @@ def get_citations(paper_id: str, max_cites: int = 20) -> list[dict]:
     url = f"{SEMANTIC_SCHOLAR_BASE}/paper/{paper_id}/citations?{params}"
 
     data = _make_request(url)
-    cites = [item.get("citingPaper", {}) for item in data.get("data", [])]
-    cites = [_truncate_paper(c) for c in cites if c.get("paper_id")]
+    cites = [item.get("citingPaper", {}) for item in (data.get("data") or [])]
+    cites = [_truncate_paper(c) for c in cites if c.get("paperId")]
     cites.sort(key=lambda p: p["citation_count"], reverse=True)
     return cites[:max_cites]
 
 
-# ─── arXiv fallback ───────────────────────────────────────────────────────────
+# --- arXiv fallback
 
 def search_papers_arxiv(query: str, max_results: int = MAX_RESULTS_PER_SEARCH) -> list[dict]:
     """
@@ -197,7 +213,7 @@ def search_papers_arxiv(query: str, max_results: int = MAX_RESULTS_PER_SEARCH) -
     return papers
 
 
-# ─── Unified search (tries Semantic Scholar, falls back to arXiv) ─────────────
+# --- Unified search (tries Semantic Scholar, falls back to arXiv)
 
 def search_papers(query: str, max_results: int = MAX_RESULTS_PER_SEARCH) -> dict:
     """
@@ -215,7 +231,7 @@ def search_papers(query: str, max_results: int = MAX_RESULTS_PER_SEARCH) -> dict
     return {"source": "arxiv", "query": query, "results": results}
 
 
-# ─── Demo ─────────────────────────────────────────────────────────────────────
+# --- Demo
 
 if __name__ == "__main__":
     query = "contrastive learning hypergraph"

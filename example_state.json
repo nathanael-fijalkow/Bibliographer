@@ -1,0 +1,15 @@
+{
+  "target_topic": "GPU-accelerated program synthesis",
+  "seed_keywords": [
+    "program synthesis",
+    "massively parallel algorithms",
+    "code generation",
+    "combinatorial search"
+  ],
+  "discovery_queue": [],
+  "curated_library": {},
+  "blacklist": [],
+  "pending_review": [],
+  "narrative_outline": null,
+  "iteration": 0
+}

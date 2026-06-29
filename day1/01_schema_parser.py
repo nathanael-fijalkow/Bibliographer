@@ -20,7 +20,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 from shared.llm_client import chat, _extract_json
 
 
-# ─── Schema definition ────────────────────────────────────────────────────────
+# --- Schema definition
 #
 # We define the schema as a string so we can embed it verbatim in the system
 # prompt. This makes the contract explicit to both the LLM and the reader.
@@ -78,7 +78,7 @@ Rules:
 - Do not include markdown fences, prose, or any text outside the JSON object.
 - The "steps" array must contain between 2 and 5 steps.
 - Only use tool names from the available tools list above.
-- "estimated_papers_needed" must be a reasonable integer (5–50 for most topics).
+- "estimated_papers_needed" must be a reasonable integer (5-50 for most topics).
 """
 
 
@@ -132,7 +132,7 @@ def generate_plan(target_topic: str) -> dict:
     if errors:
         print("[schema_parser] Validation errors:")
         for err in errors:
-            print(f"  ✗ {err}")
+            print(f"  [x] {err}")
         raise ValueError(f"Plan failed validation: {errors}")
 
     print("[schema_parser] Plan validated successfully.")
