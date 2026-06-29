@@ -101,6 +101,10 @@ def run_search_loop(state: dict) -> dict:
     traversals_backward = 0
     traversals_forward  = 0
 
+    # Keep only the last N round-trips in context so the conversation doesn't
+    # grow indefinitely (some providers fail on very long histories).
+    MAX_CONTEXT_PAIRS = 8
+
     for iteration in range(1, MAX_ITERATIONS + 1):
         print(f"\n{'-' * 55}")
         print(f"ITERATION {iteration}  |  library={len(state['curated_library'])}  queue={len(state['discovery_queue'])}")
@@ -115,8 +119,14 @@ def run_search_loop(state: dict) -> dict:
             print(f"[loop] {MAX_CONSECUTIVE_ERRORS} consecutive errors. Aborting search phase.")
             break
 
+        # -- Prune old context (keep system + start header, then last N pairs)
+        header, tail = messages[:2], messages[2:]
+        if len(tail) > MAX_CONTEXT_PAIRS * 2:
+            tail = tail[-(MAX_CONTEXT_PAIRS * 2):]
+            messages = header + tail
+
         # -- THINK
-        raw = chat(messages, max_tokens=512, temperature=0.2)
+        raw = chat(messages, max_tokens=1024, temperature=0.2)
 
         # -- PARSE
         try:

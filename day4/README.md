@@ -17,8 +17,8 @@ A solution is staged synthesis:
 ```
 Stage 1 - CLUSTER:   Group papers into 2-4 thematic sub-sections
 Stage 2 - OUTLINE:   Write a sentence-level plan for each sub-section
-Stage 2 - DRAFT:    Build BibTeX deterministically, then LLM writes prose (exercises 2-3)
-Stage 3 - CHECK:    A second LLM pass validates every factual claim (exercise 4)
+Stage 3 - DRAFT:    Build BibTeX deterministically, then LLM writes prose (exercises 2-3)
+Stage 4 - CHECK:    A second LLM pass validates every factual claim (exercise 4)
 ```
 
 Each stage gets its own prompt. Each stage's output is the next stage's input. This decomposition is more token-efficient and produces more coherent text than a monolithic prompt.

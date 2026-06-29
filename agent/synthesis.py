@@ -51,14 +51,25 @@ def cluster_library(state: dict) -> dict:
     system = (
         f'Group these papers into 2-4 thematic clusters for a related works section on: '
         f'"{state["target_topic"]}"\n\n'
-        f'Rules: every paper in exactly one cluster; valid IDs: [{valid_ids}]\n'
-        f'Respond ONLY with JSON matching:\n{_CLUSTER_SCHEMA}'
+        f'Rules: every paper in exactly one cluster; valid IDs: [{valid_ids}]\n\n'
+        f'Your response must be a JSON object and nothing else.\n'
+        f'Start your response with {{ and end it with }}.\n'
+        f'Do not include any explanation, preamble, or code fences.\n\n'
+        f'Schema:\n{_CLUSTER_SCHEMA}'
     )
+    messages = [{"role": "system", "content": system},
+                {"role": "user", "content": f"Papers:\n{summaries}"}]
     print(f"[clusterer] Clustering {len(library)} papers...")
-    raw = chat([{"role": "system", "content": system},
-                {"role": "user", "content": f"Papers:\n{summaries}"}],
-               max_tokens=1200, temperature=0.3)
-    outline = _extract_json(raw)
+    raw = chat(messages, max_tokens=2048, temperature=0.3)
+    try:
+        outline = _extract_json(raw)
+    except ValueError:
+        messages.append({"role": "assistant", "content": raw})
+        messages.append({"role": "user", "content":
+            "Output only the JSON object. Begin with { on the very first character. "
+            "End with }. No markdown, no explanation, no code fence."})
+        raw = chat(messages, max_tokens=1024, temperature=0.0)
+        outline = _extract_json(raw)
 
     # Repair: push any unassigned papers into the last cluster
     assigned = {pid for c in outline["clusters"] for pid in c.get("paper_ids", [])}
